@@ -1,0 +1,6 @@
+{
+  "name": "ghars-system", "version": "2.0.0", "private": true,
+  "description": "Ghars students, attendance and notifications",
+  "main": "server.js", "engines": {"node": ">=24.0.0"},
+  "scripts": {"start": "node --env-file-if-exists=.env server.js", "test": "node --test tests/*.test.js"}
+}
