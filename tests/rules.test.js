@@ -1,0 +1,11 @@
+const {test}=require('node:test');const assert=require('node:assert/strict');
+const {validIdentity,validDay,buildNotifications}=require('../rules');
+const student={id:1,name:'طالب اختبار',group_id:'g1',national_id:'123456782',parent_phone:'0500000000',id_reviewed:1};
+function notices(records,students=[student]){return buildNotifications(students,records,'2026-10-24');}
+function record(date,status,student_id=1){return {student_id,date,status};}
+test('checksum, exact length, Arabic numerals, zeros and non-digits',()=>{assert.ok(validIdentity('123456782'));assert.ok(validIdentity('١٢٣٤٥٦٧٨٢'));for(const v of ['123456781','12345678','000000000','123-456782',''])assert.equal(validIdentity(v),false);});
+test('calendar rejects impossible dates',()=>{assert.ok(validDay('2024-02-29'));assert.equal(validDay('2026-02-29'),false);assert.equal(validDay('2026-13-01'),false);});
+test('three latest recorded group meetings create absence alert',()=>{const r=['2026-10-01','2026-10-08','2026-10-15'].map(d=>record(d,'absent'));assert.equal(notices(r).filter(n=>n.type==='absence').length,1);assert.equal(notices(r.slice(1)).filter(n=>n.type==='absence').length,0);assert.equal(notices([...r,record('2026-10-22','present')]).filter(n=>n.type==='absence').length,0);});
+test('unknown, late and future attendance do not extend absence',()=>{const other={...student,id:2};let r=['2026-10-01','2026-10-08','2026-10-15'].map(d=>record(d,'absent'));assert.equal(notices([...r,record('2026-10-22','present',2)],[student,other]).filter(n=>n.type==='absence').length,0);assert.equal(notices([...r,record('2026-10-22','late')]).filter(n=>n.type==='absence').length,0);assert.equal(notices([...r,record('2027-01-01','present')]).filter(n=>n.type==='absence').length,1);});
+test('identity duplication, invalid identity, review and missing contact',()=>{const n=notices([],[{...student,national_id:'',parent_phone:'',id_reviewed:0},student,{...student,id:2}]);for(const t of ['invalid_id','duplicate_id','unreviewed_id','missing_phone'])assert.ok(n.some(x=>x.type===t));});
+test('read identity changes when underlying problem changes',()=>{const a=notices([],[{...student,national_id:'bad'}])[0];const b=notices([],[{...student,national_id:'wrong'}])[0];assert.notEqual(a.key,b.key);});
